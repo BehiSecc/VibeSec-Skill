@@ -646,39 +646,50 @@ Cache-Control: no-store (for sensitive pages)
 
 JWT misconfigurations can lead to full authentication bypass and token forgery.
 
-### Critical Vulnerabilities
+### Vulnerabilities
 
-| Vulnerability | Impact | Prevention |
-|---------------|--------|------------|
-| `alg: none` attack | Full auth bypass — signature not verified | Always verify algorithm server-side, reject `none` |
-| Algorithm confusion | Auth bypass — RS256 token verified as HS256 using public key as secret | Explicitly specify expected algorithm, never derive from token |
-| Weak HMAC secrets | Token forgery — brute-forceable secrets | Use 256+ bit cryptographically random secrets |
-| Missing expiration | Permanent access — stolen tokens valid forever | Always set `exp` claim, keep short (15min for access tokens) |
-| Token in localStorage | Session hijack via XSS — any XSS steals all tokens | Store in httpOnly cookies, never localStorage |
+| Vulnerability | Prevention |
+|---------------|------------|
+| `alg: none` attack | Always verify algorithm server-side, reject `none` |
+| Algorithm confusion | Explicitly specify expected algorithm, never derive from token |
+| Weak HMAC secrets | Use 256+ bit cryptographically random secrets |
+| Missing expiration | Always set `exp` claim |
+| Token in localStorage | Store in httpOnly, Secure, SameSite=Strict cookies, never localStorage |
+
 
 ### Secure Implementation
 
 ```javascript
-// VERIFY — Always specify algorithm explicitly
-jwt.verify(token, secret, { algorithms: ['HS256'] })  // Secure
-jwt.verify(token, secret)  // Vulnerable — accepts any algorithm including "none"
+// 1. SIGNING
+// Always use environment variables for secrets
+const secret = process.env.JWT_SECRET; 
 
-// SIGN — Include essential claims
-jwt.sign({
+const token = jwt.sign({
   sub: userId,
   iat: Math.floor(Date.now() / 1000),
-  exp: Math.floor(Date.now() / 1000) + (15 * 60), // 15 minutes
-  jti: crypto.randomUUID()  // Unique ID for revocation
-}, secret, { algorithm: 'HS256' })
+  exp: Math.floor(Date.now() / 1000) + (15 * 60), // 15 mins (Short-lived)
+  jti: crypto.randomUUID() // Unique ID for revocation/blacklisting
+}, secret, { 
+  algorithm: 'HS256' 
+});
+
+// 2. SENDING (Cookie Best Practices)
+// Protect against XSS and CSRF
+res.cookie('token', token, {
+  httpOnly: true, 
+  secure: true,    
+  sameSite: 'strict'
+});
+
+// 3. VERIFYING
+// CRITICAL: Whitelist the allowed algorithm
+jwt.verify(token, secret, { algorithms: ['HS256'] }, (err, decoded) => {
+  if (err) {
+    // Handle invalid token
+  }
+  // Trust the payload
+});
 ```
-
-### Token Storage
-
-| Storage Method | XSS Vulnerable | CSRF Vulnerable | Recommendation |
-|----------------|---------------|-----------------|----------------|
-| localStorage | Yes — any XSS steals token | No | Never use for auth tokens |
-| httpOnly cookie | No | Yes — mitigate with SameSite + CSRF token | Use this |
-| Memory only | No | No | Good for short-lived access tokens |
 
 ### JWT Checklist
 
@@ -711,12 +722,13 @@ This applies to any ORM/framework — always explicitly define which fields a re
 
 ### GraphQL
 
-| Vulnerability | Impact | Prevention |
-|---------------|--------|------------|
-| Introspection in production | Full schema exposure — attackers see every type, field, mutation | Disable introspection in production |
-| Query depth attack | DoS — deeply nested queries exhaust server resources | Implement query depth limiting (e.g. max 10 levels) |
-| Query complexity attack | DoS — single expensive query overloads server | Calculate and enforce query cost limits |
-| Batching attack | Auth bypass / DoS — hundreds of operations in one request | Limit operations per request |
+| Vulnerability | Prevention |
+| :--- | :--- |
+| Introspection in production | Disable introspection in production environments. |
+| Query depth attack | Implement query depth limiting (e.g., maximum of 10 levels). |
+| Query complexity attack | Calculate and enforce strict query cost limits. |
+| Batching attack | Limit the number of operations allowed per single request. |
+
 
 ```javascript
 const server = new ApolloServer({
@@ -727,23 +739,6 @@ const server = new ApolloServer({
   ]
 })
 ```
-
-### OAuth 2.0
-
-| Misconfiguration | Impact | Prevention |
-|------------------|--------|------------|
-| Open redirect_uri | Token theft — attacker redirects auth code to their server | Validate redirect_uri exactly, no wildcards or partial matches |
-| Missing PKCE | Auth code interception on public clients (SPA/mobile) | Always use PKCE for public clients |
-| Missing state parameter | CSRF — attacker initiates OAuth flow on victim's behalf | Generate random state, validate on callback |
-| Implicit flow for web apps | Token exposed in URL fragment | Use authorization code flow instead |
-
-### OAuth Checklist
-
-- [ ] redirect_uri validated exactly (not prefix/substring match)
-- [ ] PKCE enforced for public clients (mobile/SPA)
-- [ ] State parameter generated and validated
-- [ ] Authorization code flow used (not implicit)
-- [ ] Access token audience (`aud` claim) validated
 
 ---
 
