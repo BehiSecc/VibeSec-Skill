@@ -76,12 +76,14 @@ VibeSec is an AI Skill that acts as a security-first co-pilot. It teaches your s
 
 VibeSec provides comprehensive protection against:
 
-| Category | Vulnerabilities |
+| Category | Covered Vulnerabilities |
 |----------|-----------------|
 | **Access Control** | IDOR, Privilege Escalation, Horizontal/Vertical Access, Mass Assignment, Token Revocation |
 | **Client-Side** | XSS (Stored, Reflected, DOM), CSRF, Secret Key Exposure, Open Redirect |
 | **Server-Side** | SSRF, SQL Injection, XXE, Path Traversal, Insecure File Upload |
-| **Authentication** | Weak Passwords, Session Management, Account Lifecycle |
+| **Authentication** | Weak Passwords, Session Management, Account Lifecycle, JWT Security |
+| **API Security** | Mass Assignment, GraphQL Security |
+
 
 ### Deep Coverage Includes:
 
