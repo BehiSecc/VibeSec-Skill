@@ -1,5 +1,5 @@
 ---
-name: Vibe Security Skill
+name: Vibe-Security-Skill
 description: This skill helps Claude write secure web applications. Use when working on any web application to ensure security best practices are followed.
 ---
 
