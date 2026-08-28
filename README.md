@@ -83,9 +83,9 @@ VibeSec provides comprehensive protection against:
 |----------|-----------------|
 | **Access Control** | IDOR, Privilege Escalation, Horizontal/Vertical Access, Mass Assignment, Token Revocation |
 | **Client-Side** | XSS (Stored, Reflected, DOM), CSRF, Secret Key Exposure, Open Redirect |
-| **Server-Side** | SSRF, SQL Injection, XXE, Path Traversal, Insecure File Upload |
-| **Authentication** | Weak Passwords, Session Management, Account Lifecycle, JWT Security |
-| **API Security** | Mass Assignment, GraphQL Security |
+| **Server-Side** | SSRF, SQL Injection, Command Injection, SSTI, Insecure Deserialization, XXE, Path Traversal, Insecure File Upload |
+| **Authentication** | Weak Passwords, Brute Force / Rate Limiting, Account Enumeration, Session Fixation, Password Reset, MFA, Account Lifecycle, JWT Security |
+| **API Security** | Mass Assignment, GraphQL Security, CORS Misconfiguration, Race Conditions (TOCTOU) |
 
 
 ### Deep Coverage Includes:

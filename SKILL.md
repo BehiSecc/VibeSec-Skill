@@ -302,19 +302,68 @@ Any endpoint accepting a URL for redirection must be protected against open redi
 
 ---
 
-### Password Security
+## Authentication & Session Management
 
-#### Password Requirements
+Robust authentication is more than password hashing — the surrounding flows (login, reset, session lifecycle) are where account takeover usually happens.
+
+### Password Requirements
 
 - Minimum 8 characters (12+ recommended)
 - No maximum length (or very high, e.g., 128 chars)
 - Allow all characters including special chars
 - Don't require specific character types (let users choose strong passwords)
+- Check against known-breached password lists (e.g., HaveIBeenPwned k-anonymity API)
 
-#### Storage
+### Password Storage
 
-- Use Argon2id, bcrypt, or scrypt
+- Use Argon2id, bcrypt, or scrypt with a unique per-password salt
 - Never MD5, SHA1, or plain SHA256
+- Cap bcrypt input length (72 bytes) or pre-hash to avoid silent truncation
+
+### Brute Force & Rate Limiting
+
+- Rate-limit login, password reset, MFA, and OTP endpoints per account **and** per IP
+- Apply exponential backoff or temporary lockout after repeated failures
+- Defend against credential stuffing (breached-password checks, anomaly signals, CAPTCHA on suspicion)
+- Rate-limit on a key attackers can't trivially rotate (account + IP/subnet), not IP alone
+
+### Account Enumeration
+
+- Return identical responses **and** timing for "user not found" vs "wrong password"
+- Login, signup, password reset, and MFA flows must not reveal whether an account exists
+- Password reset should always respond "if an account exists, an email was sent"
+
+### Session Management
+
+- Generate session IDs with a CSPRNG, 128+ bits of entropy
+- Store in `HttpOnly; Secure; SameSite=Strict` (or `Lax`) cookies
+- **Regenerate the session ID on login and on privilege change** (prevents session fixation)
+- Set both idle and absolute session timeouts
+- Invalidate sessions server-side on logout, password change, and account deletion
+- Require fresh re-authentication for sensitive actions (email/password change)
+
+### Password Reset Tokens
+
+- Cryptographically random, single-use, short expiry (e.g., 15–60 min)
+- Store only a **hash** of the token server-side
+- Invalidate all other sessions after a successful reset
+- Keep tokens out of Referer headers and logs; strip/rotate on use
+
+### Multi-Factor Authentication (MFA)
+
+- Rate-limit OTP verification (a 6-digit code is trivially brute-forced without it)
+- Invalidate the OTP after first use and after expiry
+- Regenerate the session and re-check MFA on sensitive changes
+- Recovery codes must be single-use and hashed at rest
+
+### Auth Checklist
+
+- [ ] Login/reset/MFA endpoints rate-limited (per account + per IP)
+- [ ] Uniform responses/timing to prevent account enumeration
+- [ ] Session ID regenerated on login and privilege change
+- [ ] Sessions invalidated on logout / password change / deletion
+- [ ] Reset tokens random, hashed, single-use, expiring
+- [ ] OTP brute force prevented; recovery codes single-use
 
 ---
 
@@ -496,6 +545,94 @@ execute(query, [userId])
 - **Least privilege**: Database user should have minimum required permissions
 - **Disable dangerous functions**: Like `xp_cmdshell` in SQL Server
 - **Error handling**: Never expose SQL errors to users
+
+---
+
+### Command Injection
+
+OS command injection occurs when user input reaches a system shell or command-execution function.
+
+Watch these sinks: `system()`, `exec()`, `popen()`, backticks, `os.system`, `subprocess(..., shell=True)`, `child_process.exec`, `Runtime.exec`, `ProcessBuilder` invoking a shell, `eval` of shell strings.
+
+#### Prevention
+
+1. **Avoid the shell** — use argument-array APIs, never a concatenated command string:
+```python
+# VULNERABLE
+os.system("ping -c 1 " + user_host)
+subprocess.run("ping -c 1 " + user_host, shell=True)
+
+# SECURE — no shell, args as a list
+subprocess.run(["ping", "-c", "1", user_host], shell=False)
+```
+```javascript
+// VULNERABLE
+child_process.exec(`convert ${file} out.png`)
+
+// SECURE — execFile, args array, no shell interpolation
+child_process.execFile('convert', [file, 'out.png'])
+```
+
+2. **Prefer native libraries** over shelling out (image libs instead of `convert`, HTTP clients instead of `curl`).
+3. **If a shell is unavoidable**: strict allowlist of values (`[a-zA-Z0-9._-]`), never a blocklist.
+
+#### Shell Metacharacters to Block
+
+`; | & $ > < \` \ ! * ? ( ) { } [ ]` newlines, and `$(...)` / backtick command substitution. Blocklisting is fragile — argument arrays are the real fix.
+
+#### Checklist
+
+- [ ] No user input concatenated into shell strings
+- [ ] `shell=True` / string `exec` avoided; argument-array APIs used
+- [ ] Allowlist validation on any value reaching a command
+- [ ] Argument injection handled (input starting with `-` treated as a flag; use a `--` separator)
+
+---
+
+### Server-Side Template Injection (SSTI)
+
+SSTI occurs when user input is embedded into server-side **template source** that is then evaluated — often escalating to RCE.
+
+At-risk engines: Jinja2/Flask, Twig, Freemarker, Velocity, Handlebars, Pug, ERB, Thymeleaf, Smarty.
+
+```python
+# VULNERABLE — user input becomes template source
+render_template_string(f"Hello {user_input}")
+
+# SECURE — user input is DATA passed to a static template
+render_template_string("Hello {{ name }}", name=user_input)
+```
+
+#### Prevention
+
+- Never concatenate user input into template source; pass it as a context variable.
+- For user-supplied templates, use a sandboxed/logic-less engine with allowlisted filters.
+- Detection payloads attackers try: `{{7*7}}`, `${7*7}`, `#{7*7}`, `<%= 7*7 %>` — a response of `49` confirms injection.
+
+---
+
+### Insecure Deserialization
+
+Deserializing untrusted data can yield RCE, object injection, or DoS.
+
+High-risk APIs: Python `pickle` / `yaml.load`, PHP `unserialize()`, Java `ObjectInputStream.readObject`, Ruby `Marshal.load`, .NET `BinaryFormatter` / `Json.NET` with `TypeNameHandling`, Node `node-serialize`.
+
+```python
+# VULNERABLE
+data = pickle.loads(request.body)
+config = yaml.load(user_input)
+
+# SECURE — data-only formats
+data = json.loads(request.body)
+config = yaml.safe_load(user_input)
+```
+
+#### Checklist
+
+- [ ] No native object deserializer on untrusted input
+- [ ] JSON / `safe_load` used for external data
+- [ ] `BinaryFormatter` / `TypeNameHandling.All` avoided (.NET)
+- [ ] If objects must be serialized, payloads are HMAC-signed and integrity-checked
 
 ---
 
@@ -739,6 +876,58 @@ const server = new ApolloServer({
   ]
 })
 ```
+
+### CORS Misconfiguration
+
+Overly permissive CORS lets malicious origins read authenticated responses.
+
+| Misconfiguration | Why it's dangerous |
+| :--- | :--- |
+| Reflecting the `Origin` header without validation | Any site can make credentialed cross-origin reads |
+| `Allow-Origin: *` + `Allow-Credentials: true` | Browsers block the combo, but reflecting Origin achieves the same leak |
+| Trusting the `null` origin | Sandboxed iframes / redirects send `Origin: null` |
+| Unanchored regex `^https://.*\.example\.com$` | `evil.example.com.attacker.com` matches |
+
+```javascript
+const allowed = new Set(['https://app.example.com'])
+app.use((req, res, next) => {
+  const origin = req.headers.origin
+  if (allowed.has(origin)) {                 // echo only if allowlisted
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Vary', 'Origin')
+  }
+  next()
+})
+```
+
+- Never reflect arbitrary origins, never pair `*` with credentials, never trust `null`.
+
+### Race Conditions (TOCTOU)
+
+Concurrent requests can bypass checks that assume sequential execution — a common bug-bounty finding for double-spend, coupon reuse, quota bypass, and duplicate resource creation.
+
+At-risk flows: redeeming credits/coupons, withdrawals, "one per user" actions, invite acceptance, application-level rate/quota checks.
+
+```sql
+-- VULNERABLE: check-then-act across two statements (racy)
+SELECT balance FROM accounts WHERE id = ?;   -- app checks >= amount
+UPDATE accounts SET balance = balance - ? WHERE id = ?;
+
+-- SECURE: single atomic conditional update; act only if a row was affected
+UPDATE accounts SET balance = balance - ?
+WHERE id = ? AND balance >= ?;
+```
+
+- Enforce invariants in the database (unique constraints, `SELECT ... FOR UPDATE`, atomic conditional updates), not in application code.
+- Use idempotency keys on payment/create endpoints.
+
+#### Checklist
+
+- [ ] "One-time" actions guarded by a DB unique constraint
+- [ ] Balance/quota mutations are atomic conditional updates
+- [ ] Payment/create endpoints accept idempotency keys
+- [ ] Row locking used where read-then-write is unavoidable
 
 ---
 
