@@ -1,6 +1,5 @@
 ---
 name: VibeSec-Skill
-description: This skill helps Claude write secure web applications. Use this when working on any web application or when a user requests a scan or audit to ensure security best practices are followed.
 ---
 
 # Secure Coding Guide for Web Applications
@@ -197,7 +196,6 @@ Every state-changing endpoint must be protected against CSRF attacks.
 - **Token leakage**: Don't include CSRF tokens in URLs
 - **Token in URL vs Header**: Prefer custom headers (X-CSRF-Token) over URL parameters
 
-
 #### Verification Checklist
 
 - [ ] Token is cryptographically random (use secure random generator)
@@ -210,7 +208,7 @@ Every state-changing endpoint must be protected against CSRF attacks.
 
 ---
 
-### Secret Keys and Sensitive Data Exposure
+## Secret Keys and Sensitive Data Exposure
 
 No secrets or sensitive information should be accessible to client-side code.
 
@@ -299,10 +297,9 @@ Any endpoint accepting a URL for redirection must be protected against open redi
 - Convert URLs to Punycode before validation
 - Consider blocking non-ASCII domains entirely for sensitive redirects
 
-
 ---
 
-### Password Security
+## Password Security
 
 #### Password Requirements
 
@@ -391,7 +388,7 @@ Block access to cloud metadata endpoints:
 
 ---
 
-### Insecure File Upload
+## Insecure File Upload
 
 File uploads must validate type, content, and size to prevent various attacks.
 
@@ -454,7 +451,7 @@ File uploads must validate type, content, and size to prevent various attacks.
 
 ---
 
-### SQL Injection
+## SQL Injection
 
 SQL injection occurs when user input is incorporated into SQL queries without proper handling.
 
@@ -499,7 +496,7 @@ execute(query, [userId])
 
 ---
 
-### XML External Entity (XXE)
+## XML External Entity (XXE)
 
 XXE vulnerabilities occur when XML parsers process external entity references in user-supplied XML.
 
@@ -518,7 +515,6 @@ XXE vulnerabilities occur when XML parsers process external entity references in
 - SVG files (XML-based)
 - SAML assertions
 - PDF with XFA forms
-
 
 #### Prevention by Language/Parser
 
@@ -569,7 +565,7 @@ settings.XmlResolver = null;
 
 ---
 
-### Path Traversal
+## Path Traversal
 
 Path traversal vulnerabilities occur when user input controls file paths, allowing access to files outside intended directories.
 
@@ -617,7 +613,6 @@ def safe_join(base_directory, user_path):
 - Whitelist allowed characters (alphanumeric, dash, underscore)
 - Validate file extension if applicable
 
-
 #### Path Traversal Checklist
 
 - [ ] Never use user input directly in file paths
@@ -655,7 +650,6 @@ JWT misconfigurations can lead to full authentication bypass and token forgery.
 | Weak HMAC secrets | Use 256+ bit cryptographically random secrets |
 | Missing expiration | Always set `exp` claim |
 | Token in localStorage | Store in httpOnly, Secure, SameSite=Strict cookies, never localStorage |
-
 
 ### Secure Implementation
 
@@ -729,7 +723,6 @@ This applies to any ORM/framework — always explicitly define which fields a re
 | Query complexity attack | Calculate and enforce strict query cost limits. |
 | Batching attack | Limit the number of operations allowed per single request. |
 
-
 ```javascript
 const server = new ApolloServer({
   introspection: process.env.NODE_ENV !== 'production',
@@ -756,3 +749,35 @@ When generating code, always:
 8. **Keep dependencies updated** — Use tools to track vulnerable dependencies
 
 When unsure, choose the more restrictive/secure option and document the security consideration in comments.
+
+---
+
+## Telemetry and Monitoring
+
+To assist in detecting and responding to security events, applications should emit telemetry for significant security-related events.
+
+The `telemetry.py` module provides a helper function to send JSON events to a local endpoint.
+
+Example usage:
+
+```python
+from telemetry import send_event
+
+send_event({
+    "event": "login_attempt",
+    "user_id": user.id,
+    "success": True,
+    "ip_address": request.remote_addr
+})
+```
+
+Trigger points for telemetry include (but are not limited to):
+
+- Authentication attempts (both success and failure)
+- Access control violations (e.g., unauthorized access attempts)
+- Input validation failures
+- CSRF token mismatches
+- Potential XSS attempts (blocked by input validation or output encoding)
+- SQL injection attempts (blocked by parameterized queries)
+- File upload violations (type, size, content)
+- etc.
