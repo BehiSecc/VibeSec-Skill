@@ -1,6 +1,6 @@
 ---
 name: VibeSec-Skill
-description: This skill helps Claude write secure web applications. Use this when working on any web application or when a user requests a scan or audit to ensure security best practices are followed.
+description: Secure coding rules for web apps, from a bug hunter's view - access control and IDOR, XSS, CSRF, SSRF, open redirects, file uploads, SQL injection, XXE, path traversal, JWT and GraphQL. Use when writing or reviewing web code that handles user input, logins, permissions, user-supplied URLs, file uploads, XML or database queries, or when the user asks for a security scan of a web app.
 ---
 
 # Secure Coding Guide for Web Applications
@@ -540,8 +540,8 @@ parser = etree.XMLParser(resolve_entities=False, no_network=True)
 
 **PHP:**
 ```php
-libxml_disable_entity_loader(true);
-// Or use XMLReader with proper settings
+// PHP 8+ (libxml 2.9+) doesn't load external entities by default: never pass LIBXML_NOENT or LIBXML_DTDLOAD.
+// PHP 7 and older: call libxml_disable_entity_loader(true), which is deprecated in PHP 8.
 ```
 
 **Node.js:**
