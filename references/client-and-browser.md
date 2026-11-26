@@ -22,12 +22,12 @@ Framework escaping (React JSX, Vue `{{ }}`) protects text nodes, not dangerous s
 
 ## Content Security Policy
 
-- Avoid `script-src 'unsafe-inline'` and `'unsafe-eval'`; use per-request nonces or hashes when inline scripts are unavoidable.
+- Avoid `script-src 'unsafe-inline'` and `'unsafe-eval'`. For frameworks that inject inline hydration or dev scripts (Next.js, Vite, Remix), configure per-request **nonce-based CSP** through framework middleware (or start with `Content-Security-Policy-Report-Only`) instead of dropping a bare `script-src 'self'` policy that breaks the app.
 - Always include `base-uri 'self'` (blocks `<base>` URL hijacking), `object-src 'none'`, `frame-ancestors 'none'`, and `form-action 'self'`.
 - Pair CSP with `X-Content-Type-Options: nosniff`.
 
 ```http
-Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
+Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-<random>'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
 ```
 
 ## CSRF Edge Cases

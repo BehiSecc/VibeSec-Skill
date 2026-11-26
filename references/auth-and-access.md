@@ -8,6 +8,7 @@
 - [Passwords and Rate Limiting](#passwords-and-rate-limiting)
 - [JWT Security](#jwt-security)
 - [OAuth 2.0](#oauth-20)
+- [Incoming Webhooks](#incoming-webhooks)
 
 ## Object and Tenant Authorization
 
@@ -45,7 +46,7 @@
 | Weak or fallback signing secret | Use >= 256-bit cryptographically random secrets from env; fail startup if unset (no `\|\| 'secret'` fallback) |
 | Missing or long-lived `exp` | Keep access tokens short-lived (e.g., 15 min) and validate `exp` |
 | Stolen refresh tokens | Rotate refresh tokens on every use; invalidate the token family if a rotated token is replayed |
-| Token in `localStorage` / `sessionStorage` | Store session tokens in `HttpOnly; Secure; SameSite=Strict` (or `Lax` if cross-site top-level nav is needed) cookies |
+| Token in `localStorage` / `sessionStorage` | Store session tokens in `HttpOnly; SameSite=Lax` cookies (with `Secure` in production/HTTPS); use `SameSite=Strict` only when cross-site redirects (OAuth, Stripe Checkout, email links) are not needed |
 
 ```javascript
 // Critical verification and cookie defaults
@@ -55,8 +56,8 @@ const payload = jwt.verify(token, process.env.JWT_SECRET, {
 
 res.cookie('session', token, {
   httpOnly: true,
-  secure: true,
-  sameSite: 'strict',
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax', // preserves session on OAuth/Stripe/email redirects
 });
 ```
 
@@ -66,3 +67,10 @@ res.cookie('session', token, {
 - Require PKCE (`S256`) and a cryptographically random, session-bound `state` parameter on every flow; reject callbacks with missing or mismatched `state`.
 - Use Authorization Code + PKCE; never use the implicit flow (`response_type=token`).
 - Verify `email_verified === true` from the identity provider before linking an OAuth login to an existing local account by email (prevents pre-account takeover).
+
+## Incoming Webhooks
+
+- Verify the provider's HMAC signature (Stripe, GitHub, Clerk, Svix, etc.) against the **exact raw request bytes** before JSON parsing — re-serializing parsed JSON breaks verification or leads developers to skip it.
+- Compare signatures using constant-time equality (`crypto.timingSafeEqual`, `hmac.compare_digest`), never `===` or `==`.
+- Reject missing or stale timestamps (e.g., older than 5 minutes) when the provider signs a timestamp to block replay attacks.
+- Fail closed if the signing secret env var is missing, and deduplicate processed event IDs so retried webhooks are idempotent.

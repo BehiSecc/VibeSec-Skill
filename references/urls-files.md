@@ -15,7 +15,7 @@ High-risk surfaces: webhooks, URL/link previews, image/file import from URL, RSS
 - **When arbitrary public URLs must be fetched:**
   1. Allow only `http:` and `https:` schemes (reject `file:`, `gopher:`, `ftp:`, `dict:`).
   2. Resolve DNS and verify **every** returned IP is globally routable. Block loopback (`127.0.0.0/8`, `::1`), private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local (`169.254.0.0/16`, `fe80::/10`), CGNAT (`100.64.0.0/10`), ULA (`fc00::/7`), unspecified (`0.0.0.0`, `::`), and IPv4-mapped IPv6 (`::ffff:0:0/96`).
-  3. **Pin the validated IP** on the outbound connection so the HTTP client does not re-resolve DNS (prevents DNS rebinding).
+  3. **Pin the validated IP at the socket/DNS layer** using a custom DNS lookup hook or vetted SSRF-safe HTTP agent (for example, `undici` `Agent` `connect.lookup`, `ssrf-agent`, or `request-filtering-agent`) so the client cannot re-resolve DNS. Never rewrite an HTTPS URL to a raw IP and disable TLS certificate verification.
   4. Explicitly block cloud metadata endpoints (`169.254.169.254`, `fd00:ec2::254`, `metadata.google.internal`, `metadata`).
   5. Disable redirects, or re-run full URL, DNS, and IP validation on **every redirect hop**.
   6. Set strict connect/read timeouts and cap maximum response size.

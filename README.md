@@ -34,7 +34,7 @@ Current models already know textbook OWASP definitions, so VibeSec skips boilerp
 vibesec/
 ├── SKILL.md                        # Lightweight router, modes, and always-on invariants
 └── references/
-    ├── auth-and-access.md          # IDOR, RLS, Server Actions, sessions, JWT, OAuth, rate limiting
+    ├── auth-and-access.md          # IDOR, RLS, Server Actions, sessions, JWT, OAuth, webhooks, rate limits
     ├── client-and-browser.md       # Indirect XSS sinks, CSP, CSRF edge cases, CORS, client leaks
     ├── server-and-data.md          # Non-obvious SQLi, mass assignment, GraphQL, traversal, SSTI, races
     └── urls-files.md               # SSRF bypasses, open redirects, uploads/archives, XXE
@@ -135,7 +135,7 @@ git clone https://github.com/BehiSecc/VibeSec-Skill .agent/skills/vibesec
 
 | Category | Covered Areas |
 | --- | --- |
-| **Auth & Access Control** | IDOR / tenant isolation, parent-resource checks, Next.js Server Actions, BaaS RLS, session lifecycle & revocation, password hashing, rate limiting, JWT, OAuth 2.0 (PKCE, `state`, email verification) |
+| **Auth & Access Control** | IDOR / tenant isolation, parent-resource checks, Next.js Server Actions, BaaS RLS, session lifecycle & revocation, password hashing, rate limiting, JWT, OAuth 2.0 (PKCE, `state`, email verification), incoming webhook HMAC verification |
 | **Client & Browser** | Indirect XSS sinks (URL schemes, Markdown, SVG, PDFs, `postMessage`), CSP, pre-auth & missing-token CSRF, CORS misconfiguration, client-side & SSR hydration secret leaks |
 | **Server & Data** | Non-parameterizable SQLi (`ORDER BY`, ORM raw escapes), mass assignment, GraphQL limits & alias batching, path traversal, command & argument injection, SSTI, race conditions / TOCTOU |
 | **URLs, Files & XML** | SSRF bypasses & DNS rebinding, cloud metadata protection, open redirect parser bypasses, file upload polyglots & ZIP slip, XXE (including PHP 8+ guidance) |
